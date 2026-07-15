@@ -1,4 +1,4 @@
-package aho_corasick
+package ahocorasick
 
 import (
 	"unsafe"

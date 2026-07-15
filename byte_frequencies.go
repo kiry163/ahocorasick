@@ -1,4 +1,4 @@
-package aho_corasick
+package ahocorasick
 
 var byteFrequencies = [256]byte{
 	55,  // '\x00'
