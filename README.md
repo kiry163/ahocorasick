@@ -1,86 +1,82 @@
-# Aho-Corasick
+# Aho-Corasick for Go
 
-A fast, feature-rich Go implementation of the [Aho-Corasick](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm) string matching algorithm.
+`ahocorasick` is a compact multi-pattern string matcher based on the
+[Aho-Corasick algorithm](https://en.wikipedia.org/wiki/Aho%E2%80%93Corasick_algorithm).
+It uses leftmost-longest matching by default and keeps NFA/DFA representation
+details internal.
 
-## Features
-
-- **Multiple matching modes** — `StandardMatch`, `LeftMostFirstMatch`, and `LeftMostLongestMatch`
-- **DFA and NFA backends** — choose between the deterministic (faster, more memory) and non-deterministic (smaller) automaton via the `DFA` option
-- **Overlapping matches** — find all overlapping occurrences via `IterOverlapping`
-- **Streaming / iterator API** — iterate through matches one at a time with `Iter` / `IterByte`
-- **Byte-level API** — work directly with `[]byte` for zero-allocation use cases
-- **Find + Replace** — `Replacer` supports `ReplaceAll`, `ReplaceAllFunc`, and `ReplaceAllWith`
-- **Prefilter** — built-in rare-byte prefilter for fast skipping over non-matching regions
-- **Whole-word matching** — optional `MatchOnlyWholeWords` filtering
-- **ASCII case-insensitive matching** — `AsciiCaseInsensitive` option
-
-## Installation
+## Install
 
 ```bash
 go get github.com/kiry163/ahocorasick
 ```
 
-## Quick Start
+## Usage
 
 ```go
 package main
 
 import (
-    "fmt"
+	"fmt"
+	"log"
 
-    ac "github.com/kiry163/ahocorasick"
+	"github.com/kiry163/ahocorasick"
 )
 
 func main() {
-    // Build a matcher
-    builder := ac.NewAhoCorasickBuilder(ac.Opts{
-        MatchKind: ac.LeftMostLongestMatch,
-        DFA:       true,
-    })
-    matcher := builder.Build([]string{"hello", "world", "hello world"})
+	matcher, err := ahocorasick.Compile(
+		[]string{"世界", "Go"},
+		ahocorasick.Options{ASCIIInsensitive: true},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    // Find all matches
-    matches := matcher.FindAll("hello world!")
-    for _, m := range matches {
-        fmt.Printf("Pattern %d matched at [%d..%d]\n", m.Pattern(), m.Start(), m.End())
-    }
-
-    // Replace
-    replacer := ac.NewReplacer(matcher)
-    result := replacer.ReplaceAll("hello world!", []string{"HELLO", "WORLD", "HELLO WORLD"})
-    fmt.Println(result) // "HELLO WORLD!"
+	haystack := "你好，世界! go"
+	for _, match := range matcher.FindAll(haystack) {
+		fmt.Printf(
+			"pattern %d: runes [%d,%d), bytes [%d,%d), text %q\n",
+			match.Pattern(),
+			match.Start(),
+			match.End(),
+			match.ByteStart(),
+			match.ByteEnd(),
+			haystack[match.ByteStart():match.ByteEnd()],
+		)
+	}
 }
 ```
 
-## API Overview
+## Matching Semantics
 
-### AhoCorasick
+- `Find` and `FindAll` use non-overlapping leftmost-longest matching.
+- `FindAllOverlapping` returns all matches ordered by start position, then by
+  longest match and pattern index.
+- All ranges are half-open: `[start, end)`.
+- `Start` and `End` are rune offsets.
+- `ByteStart` and `ByteEnd` are byte offsets suitable for slicing the original
+  string.
+- Patterns must be valid UTF-8. Invalid UTF-8 in a haystack follows Go's
+  `utf8.RuneCountInString` behavior.
+- Empty pattern sets and empty patterns are rejected by `Compile`.
 
-| Method | Description |
-|--------|-------------|
-| `FindAll(haystack string)` | Returns all non-overlapping matches |
-| `Iter(haystack string)` | Returns a lazy iterator over matches |
-| `IterByte(haystack []byte)` | Byte-slice variant of `Iter` |
-| `IterOverlapping(haystack string)` | Iterator that includes overlapping matches |
-| `IterOverlappingByte(haystack []byte)` | Byte-slice variant of `IterOverlapping` |
-| `PatternCount()` | Returns the number of patterns |
+`Options.WholeWords` uses Unicode letters, digits, marks, and connector
+punctuation (including `_`) as word characters. `Options.ASCIIInsensitive`
+folds ASCII letters only.
 
-### AhoCorasickBuilder
+## Replacement
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `MatchKind` | `matchKind` | `StandardMatch`, `LeftMostFirstMatch`, or `LeftMostLongestMatch` |
-| `DFA` | `bool` | Use the DFA backend (faster, more memory) |
-| `AsciiCaseInsensitive` | `bool` | Case-insensitive matching (ASCII only) |
-| `MatchOnlyWholeWords` | `bool` | Filter matches to whole words only |
+```go
+result, err := matcher.ReplaceAll(
+	"你好，世界! go",
+	[]string{"地球", "Golang"},
+)
+```
 
-### Replacer
+The replacement slice must contain one entry for every compiled pattern.
+`ReplaceAllFunc` can compute replacements from each `Match`.
 
-| Method | Description |
-|--------|-------------|
-| `ReplaceAll(haystack, replacements)` | Replace each pattern with the corresponding replacement string |
-| `ReplaceAllFunc(haystack, func)` | Replace each match using a callback function |
-| `ReplaceAllWith(haystack, replacement)` | Replace all matches with a single replacement string |
+`Matcher` is immutable after compilation and safe for concurrent use.
 
 ## License
 

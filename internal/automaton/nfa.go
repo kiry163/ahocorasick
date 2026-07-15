@@ -1,7 +1,8 @@
-package ahocorasick
+package automaton
 
 import (
 	"sort"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -17,7 +18,7 @@ type iNFA struct {
 	states        []state
 }
 
-func (n *iNFA) FindAtNoState(prefilterState *prefilterState, bytes []byte, i int) *Match {
+func (n *iNFA) FindAtNoState(prefilterState *prefilterState, bytes []byte, i int) *rawMatch {
 	return findAtNoState(n, prefilterState, bytes, i)
 }
 
@@ -76,39 +77,39 @@ func (n *iNFA) NextStateNoFail(id stateID, b byte) stateID {
 	return next
 }
 
-func (n *iNFA) StandardFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *Match {
+func (n *iNFA) StandardFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *rawMatch {
 	return standardFindAt(n, prefilterState, bytes, i, id)
 }
 
-func (n *iNFA) StandardFindAtImp(prefilterState *prefilterState, prefilter prefilter, bytes []byte, i int, id *stateID) *Match {
+func (n *iNFA) StandardFindAtImp(prefilterState *prefilterState, prefilter prefilter, bytes []byte, i int, id *stateID) *rawMatch {
 	return standardFindAtImp(n, prefilterState, prefilter, bytes, i, id)
 }
 
-func (n *iNFA) LeftmostFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *Match {
+func (n *iNFA) LeftmostFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *rawMatch {
 	return leftmostFindAt(n, prefilterState, bytes, i, id)
 }
 
-func (n *iNFA) LeftmostFindAtImp(prefilterState *prefilterState, prefilter prefilter, bytes []byte, i int, id *stateID) *Match {
+func (n *iNFA) LeftmostFindAtImp(prefilterState *prefilterState, prefilter prefilter, bytes []byte, i int, id *stateID) *rawMatch {
 	return leftmostFindAtImp(n, prefilterState, prefilter, bytes, i, id)
 }
 
-func (n *iNFA) LeftmostFindAtNoState(prefilterState *prefilterState, bytes []byte, i int) *Match {
+func (n *iNFA) LeftmostFindAtNoState(prefilterState *prefilterState, bytes []byte, i int) *rawMatch {
 	return leftmostFindAtNoState(n, prefilterState, bytes, i)
 }
 
-func (n *iNFA) LeftmostFindAtNoStateImp(prefilterState *prefilterState, prefilter prefilter, bytes []byte, i int) *Match {
+func (n *iNFA) LeftmostFindAtNoStateImp(prefilterState *prefilterState, prefilter prefilter, bytes []byte, i int) *rawMatch {
 	return leftmostFindAtNoStateImp(n, prefilterState, prefilter, bytes, i)
 }
 
-func (n *iNFA) OverlappingFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID, i2 *int) *Match {
+func (n *iNFA) OverlappingFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID, i2 *int) *rawMatch {
 	return overlappingFindAt(n, prefilterState, bytes, i, id, i2)
 }
 
-func (n *iNFA) EarliestFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *Match {
+func (n *iNFA) EarliestFindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *rawMatch {
 	return earliestFindAt(n, prefilterState, bytes, i, id)
 }
 
-func (n *iNFA) FindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *Match {
+func (n *iNFA) FindAt(prefilterState *prefilterState, bytes []byte, i int, id *stateID) *rawMatch {
 	return findAt(n, prefilterState, bytes, i, id)
 }
 
@@ -128,7 +129,7 @@ func (n *iNFA) UsePrefilter() bool {
 	return !p.LooksForNonStartOfMatch()
 }
 
-func (n *iNFA) GetMatch(id stateID, matchIndex int, end int) *Match {
+func (n *iNFA) GetMatch(id stateID, matchIndex int, end int) *rawMatch {
 	if int(id) >= len(n.states) {
 		return nil
 	}
@@ -137,9 +138,10 @@ func (n *iNFA) GetMatch(id stateID, matchIndex int, end int) *Match {
 		return nil
 	}
 	pat := state.matches[matchIndex]
-	return &Match{
+	return &rawMatch{
 		pattern: pat.PatternID,
-		len:     pat.PatternLength,
+		length:  pat.PatternLength,
+		runeLen: pat.PatternRuneLength,
 		end:     end,
 	}
 }
@@ -557,7 +559,7 @@ Patterns:
 				prev = next
 			}
 		}
-		c.nfa.state(prev).addMatch(pati, len(pat))
+		c.nfa.state(prev).addMatch(pati, len(pat), utf8.RuneCount(pat))
 
 		if c.builder.prefilter {
 			c.prefilter.add(pat)
@@ -650,10 +652,11 @@ func (s *state) heapBytes() int {
 	return s.trans.heapBytes() + (len(s.matches) * (intSize * 2))
 }
 
-func (s *state) addMatch(patternID, patternLength int) {
+func (s *state) addMatch(patternID, patternLength, patternRuneLength int) {
 	s.matches = append(s.matches, pattern{
-		PatternID:     patternID,
-		PatternLength: patternLength,
+		PatternID:         patternID,
+		PatternLength:     patternLength,
+		PatternRuneLength: patternRuneLength,
 	})
 }
 

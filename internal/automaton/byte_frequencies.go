@@ -1,4 +1,4 @@
-package ahocorasick
+package automaton
 
 var byteFrequencies = [256]byte{
 	55,  // '\x00'

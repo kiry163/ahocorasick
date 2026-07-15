@@ -1,4 +1,4 @@
-package ahocorasick
+package automaton
 
 import (
 	"math"
@@ -45,7 +45,7 @@ func (b byteClassBuilder) build() byteClasses {
 		}
 		if b[i] {
 			if class+1 > math.MaxUint8 {
-				panic("shit happens")
+				panic("automaton: byte class count exceeds 256")
 			}
 			class += 1
 		}

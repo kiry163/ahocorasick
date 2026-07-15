@@ -1,4 +1,4 @@
-package ahocorasick
+package automaton
 
 import (
 	"math"
@@ -461,7 +461,6 @@ func (s *startBytesBuilder) build() prefilter {
 	bytes := [3]byte{}
 
 	for b := 0; b < 256; b++ {
-		//todo case insensitive is not set in byteset
 		if !s.byteset[b] {
 			continue
 		}
