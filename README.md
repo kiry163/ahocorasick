@@ -28,7 +28,7 @@ package main
 import (
     "fmt"
 
-    ac "github.com/kiry163/aho-corasick"
+    ac "github.com/kiry163/ahocorasick"
 )
 
 func main() {

@@ -1,3 +1,3 @@
-module github.com/kiry163/aho-corasick
+module github.com/kiry163/ahocorasick
 
 go 1.18
